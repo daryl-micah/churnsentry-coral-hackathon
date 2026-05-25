@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx src/agent.ts"
+    "dev": "tsx src/agent.ts",
+    "demo": "tsx src/agent.ts --demo",
+    "typecheck": "tsc --noEmit",
+    "lint": "npm run typecheck"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",
@@ -12,6 +15,9 @@
     "dotenv": "^16.4.5",
     "ora": "^8.1.0",
     "zod": "^3.23.8"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",

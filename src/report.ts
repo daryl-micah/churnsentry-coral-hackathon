@@ -52,7 +52,7 @@ function rootCauseBadge(rootCause: ChurnAnalysis["root_cause"]): string {
     case "ux":
       return chalk.bgBlue.white.bold(" UX ");
     case "support":
-      return chalk.bgKeyword("orange").black.bold(" SUPPORT ");
+      return chalk.bgHex("#FFA500").black.bold(" SUPPORT ");
     case "competition":
       return chalk.bgGray.white.bold(" COMPETITION ");
     default:

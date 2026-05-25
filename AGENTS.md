@@ -1,25 +1,21 @@
-# Coral skills & workflow
+# ChurnSentry — Coral skills guide
 
-This project uses Coral queries to gather evidence for churn root-cause analysis.
+## Query rules
 
-## Skills to implement
+- Always use `coral sql --format json` for all queries.
+- Prefer a single JOIN query over multiple sequential queries.
+- `stripe.subscriptions` must be filtered by status for performance.
+- `slack.messages` must include a channel filter to avoid scanning all channels.
 
-- **coral.queryUsage** — product usage, feature adoption, and engagement signals
-- **coral.queryBilling** — plan changes, downgrades, unpaid invoices
-- **coral.querySupport** — support ticket volume, sentiment, and SLA breaches
-- **coral.queryCRM** — account notes, renewal risks, and CSM updates
+## Discovery workflow
 
-## Recommended workflow
+1. `list_catalog` to confirm available sources and schemas.
+2. `describe_table` before writing a query against any table.
 
-1. Validate env vars and source connectivity (Stripe + Coral).
-2. Load Stripe customer context from CLI args or demo webhook event.
-3. Run Coral queries to collect signals across usage, billing, support, and CRM.
-4. Synthesize a root-cause narrative with evidence and confidence.
-5. Format the report as Markdown and Slack blocks.
-6. Optionally post to Slack via webhook.
+## Source schemas
 
-## Output expectations
-
-- Be explicit about evidence and uncertainty.
-- Prefer concrete signals over speculation.
-- Keep the report executive-friendly and action-oriented.
+- `stripe.*`
+- `sentry.*`
+- `intercom.*`
+- `github.*`
+- `slack.*`
