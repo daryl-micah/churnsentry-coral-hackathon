@@ -1,0 +1,65 @@
+{
+  "customer": {
+    "id": "cus_acme",
+    "email": "acme@example.com",
+    "name": "Acme Corp"
+  },
+  "stripeEvent": {
+    "id": "cus_acme",
+    "email": "acme@example.com",
+    "name": "Acme Corp",
+    "description": "Growth tier customer",
+    "sub_id": "sub_acme_001",
+    "status": "canceled",
+    "cancel_at": null,
+    "canceled_at": "2026-05-23T09:12:00Z",
+    "current_period_end": "2026-05-24T00:00:00Z",
+    "plan_amount": 19900,
+    "plan_currency": "usd",
+    "plan_interval": "month",
+    "plan_nickname": "Growth"
+  },
+  "sentryErrors": [
+    {
+      "id": "SEN-4021",
+      "title": "ExportTimeoutError in dashboard export",
+      "culprit": "ExportService#runExport",
+      "status": "unresolved",
+      "level": "error",
+      "first_seen": "2026-05-10T07:45:00Z",
+      "last_seen": "2026-05-24T19:20:00Z",
+      "times_seen": 64,
+      "project_slug": "dashboard-export"
+    }
+  ],
+  "intercomTickets": [
+    {
+      "id": "conv_acme_18",
+      "state": "open",
+      "read": true,
+      "created_at": "2026-05-12T11:05:00Z",
+      "updated_at": "2026-05-22T16:40:00Z",
+      "subject": "Exports keep failing with 500 error",
+      "assignee_type": "admin",
+      "open": true
+    }
+  ],
+  "recentDeploys": [
+    {
+      "tag_name": "v3.4.2",
+      "name": "Export service timeouts patch",
+      "created_at": "2026-05-22T14:10:00Z",
+      "published_at": "2026-05-22T14:20:00Z",
+      "body": "Tuned export worker concurrency and retry behavior.",
+      "author_login": "release-bot"
+    }
+  ],
+  "slackMentions": [
+    {
+      "text": "FYI #customer-success: acme is unhappy about exports again after the latest deploy.",
+      "user_id": "UCS123",
+      "ts": "1716462000.000200",
+      "channel_id": "C-CUSTOMER-SUCCESS"
+    }
+  ]
+}

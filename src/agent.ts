@@ -11,9 +11,9 @@ import {
   getStripeChurnEvent,
 } from "./coral.js";
 import { buildAnalysisPrompt, type ChurnContext } from "./prompts.js";
-import { buildReport, type ChurnAnalysis } from "./report.js";
+import { buildSlackBlocks, printReport, type ChurnAnalysis } from "./report.js";
 import { checkSources } from "./sources.js";
-import { postSlackReport } from "./webhook.js";
+import { postToSlack } from "./webhook.js";
 
 const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().min(1),
@@ -239,15 +239,10 @@ async function main(): Promise<void> {
     throw error;
   }
 
-  const report = buildReport(analysis);
-  if (report.markdown) {
-    console.log(report.markdown);
-  } else {
-    console.log(JSON.stringify(analysis, null, 2));
-  }
+  printReport(context, analysis);
 
   if (process.env.SLACK_WEBHOOK_URL) {
-    await postSlackReport(report);
+    await postToSlack(buildSlackBlocks(context, analysis), process.env.SLACK_WEBHOOK_URL);
   }
 }
 
