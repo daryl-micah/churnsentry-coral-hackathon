@@ -7,16 +7,29 @@ ChurnSentry is a Claude Code hackathon project that investigates churned Stripe 
 ## Architecture
 
 ```mermaid
-flowchart LR
-  A[Stripe webhook] --> B[ChurnSentry agent]
-  B --> C[Coral MCP]
-  C --> D[Stripe source]
-  C --> E[Sentry source]
-  C --> F[Intercom source]
-  C --> G[GitHub source]
-  C --> H[Slack source]
-  B --> I[Claude analysis]
-  I --> J[Slack report]
+flowchart TD
+  A[Stripe Webhook / CLI] --> B[ChurnSentry Agent]
+
+  B --> C[Coral MCP Server\ncoral mcp-stdio]
+
+  C --> D[(stripe.*)]
+  C --> E[(sentry.*)]
+  C --> F[(intercom.*)]
+  C --> G[(github.*)]
+  C --> H[(slack.*)]
+
+  B --> I{AI Provider\nCHURNSENTRY_PROVIDER}
+
+  I -->|claude| J[Anthropic API\nclaude-sonnet-4-20250514]
+  I -->|openai| K[OpenAI API\ngpt-4o]
+  I -->|copilot| L[GitHub Copilot API\napi.githubcopilot.com\nreuses GITHUB_TOKEN]
+
+  J --> M[Churn Root Cause Report]
+  K --> M
+  L --> M
+
+  M --> N[Terminal Report]
+  M --> O[Slack Block Kit]
 ```
 
 ## Coral integration
@@ -66,6 +79,16 @@ npm run dev -- --customer-id cus_xxx --github-repo myorg/myapp
 ```
 npm run dev -- --demo
 ```
+
+## Choosing a provider
+
+| Provider | Flag | Extra credential needed | Best for |
+|---|---|---|---|
+| Claude | `--provider claude` | `ANTHROPIC_API_KEY` | Highest reasoning quality |
+| OpenAI | `--provider openai` | `OPENAI_API_KEY` | GPT-4o JSON mode |
+| GitHub Copilot | `--provider copilot` | none (reuses `GITHUB_TOKEN`) | Zero extra cost if you have Copilot |
+
+**Copilot advantage:** if you already connected the GitHub source for Coral, you already have the token — Copilot analysis is literally free to add.
 
 ## Why Coral
 
