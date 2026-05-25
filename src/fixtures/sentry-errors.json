@@ -1,0 +1,13 @@
+[
+  {
+    "id": "ISSUE-1001",
+    "title": "Null pointer in billing flow",
+    "culprit": "BillingService#charge",
+    "status": "unresolved",
+    "level": "error",
+    "first_seen": "2026-05-01T08:00:00Z",
+    "last_seen": "2026-05-24T18:12:00Z",
+    "times_seen": 48,
+    "project_slug": "billing-api"
+  }
+]

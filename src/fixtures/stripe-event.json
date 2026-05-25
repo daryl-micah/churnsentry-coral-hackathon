@@ -1,0 +1,17 @@
+[
+  {
+    "id": "cus_demo",
+    "email": "churn@demo.co",
+    "name": "DemoCo",
+    "description": "Demo customer",
+    "sub_id": "sub_demo",
+    "status": "canceled",
+    "cancel_at": null,
+    "canceled_at": "2026-05-20T10:12:00Z",
+    "current_period_end": "2026-05-22T00:00:00Z",
+    "plan_amount": 9900,
+    "plan_currency": "usd",
+    "plan_interval": "month",
+    "plan_nickname": "Pro"
+  }
+]

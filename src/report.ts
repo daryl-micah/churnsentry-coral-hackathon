@@ -1,8 +1,12 @@
 export type ChurnAnalysis = {
-  customerId: string;
-  rootCause: string;
-  evidence: string[];
-  narrative: string;
+  summary: string;
+  root_cause: "bug" | "pricing" | "ux" | "support" | "competition" | "unknown";
+  confidence: "High" | "Medium" | "Low";
+  signals: Array<{ source: string; finding: string }>;
+  immediate_action: string;
+  long_term_fix: string;
+  systemic_risk: boolean;
+  systemic_note?: string;
 };
 
 export type ChurnReport = {
