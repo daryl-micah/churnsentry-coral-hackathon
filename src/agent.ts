@@ -1,5 +1,4 @@
 import "dotenv/config";
-import { Anthropic } from "@anthropic-ai/sdk";
 import ora from "ora";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
@@ -12,12 +11,10 @@ import {
 } from "./coral.js";
 import { buildAnalysisPrompt, type ChurnContext } from "./prompts.js";
 import { buildSlackBlocks, printReport, type ChurnAnalysis } from "./report.js";
+import { createProvider, detectProvider } from "./providers/index.js";
+import type { ProviderName } from "./providers/types.js";
 import { checkSources } from "./sources.js";
 import { postToSlack } from "./webhook.js";
-
-const envSchema = z.object({
-  ANTHROPIC_API_KEY: z.string().min(1),
-});
 
 const analysisSchema = z.object({
   summary: z.string().min(1),
@@ -36,10 +33,12 @@ type CliOptions = {
   customerId?: string;
   githubRepo?: string;
   demo: boolean;
+  provider?: ProviderName;
 };
 
 function parseArgs(args: string[]): CliOptions {
   const options: CliOptions = { demo: false };
+  const providerSchema = z.enum(["claude", "openai", "copilot"]);
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
     if (arg === "--demo") {
@@ -70,6 +69,19 @@ function parseArgs(args: string[]): CliOptions {
     }
     if (arg.startsWith("--github-repo=")) {
       options.githubRepo = arg.split("=", 2)[1];
+      continue;
+    }
+    if (arg === "--provider") {
+      const value = args[i + 1];
+      if (!value) {
+        throw new Error("Missing value for --provider");
+      }
+      options.provider = providerSchema.parse(value);
+      i += 1;
+      continue;
+    }
+    if (arg.startsWith("--provider=")) {
+      options.provider = providerSchema.parse(arg.split("=", 2)[1]);
       continue;
     }
     throw new Error(`Unknown argument: ${arg}`);
@@ -107,8 +119,9 @@ async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   await checkSources();
 
-  const env = envSchema.parse(process.env);
-  const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  const providerName = options.provider ?? detectProvider();
+  const provider = createProvider(providerName);
+  console.log(`🤖 Analysis provider: ${provider.name} (${provider.model})`);
 
   if (!options.demo && !options.customerId) {
     console.error("Missing required --customer-id");
@@ -222,16 +235,8 @@ async function main(): Promise<void> {
   let analysis: ChurnAnalysis;
   try {
     const prompt = buildAnalysisPrompt(context);
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 900,
-      messages: [{ role: "user", content: prompt }],
-    });
-    const text = response.content
-      .map((block) => (block.type === "text" ? block.text : ""))
-      .join("\n")
-      .trim();
-    const jsonPayload = extractJson(text);
+    const raw = await provider.analyze(prompt);
+    const jsonPayload = extractJson(raw);
     analysis = analysisSchema.parse(JSON.parse(jsonPayload));
     analysisSpinner.succeed("🤖 Running root cause analysis...");
   } catch (error) {
