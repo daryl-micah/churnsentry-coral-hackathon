@@ -96,19 +96,6 @@ function parseGithubRepo(input: string): { owner: string; repo: string } {
   return { owner, repo };
 }
 
-function extractJson(text: string): string {
-  const trimmed = text.trim();
-  const withoutFence = trimmed.startsWith("```")
-    ? trimmed.replace(/^```[a-zA-Z]*\n?/, "").replace(/```$/, "").trim()
-    : trimmed;
-  const firstBrace = withoutFence.indexOf("{");
-  const lastBrace = withoutFence.lastIndexOf("}");
-  if (firstBrace === -1 || lastBrace === -1) {
-    throw new Error("No JSON object found in model output");
-  }
-  return withoutFence.slice(firstBrace, lastBrace + 1);
-}
-
 async function loadFixture<T>(fileName: string): Promise<T> {
   const fileUrl = new URL(`./fixtures/${fileName}`, import.meta.url);
   const raw = await readFile(fileUrl, "utf-8");
@@ -234,20 +221,21 @@ async function main(): Promise<void> {
   const analysisSpinner = ora("🤖 Running root cause analysis...").start();
   let analysis: ChurnAnalysis;
   try {
-    const prompt = buildAnalysisPrompt(context);
-    const raw = await provider.analyze(prompt);
-    const jsonPayload = extractJson(raw);
-    analysis = analysisSchema.parse(JSON.parse(jsonPayload));
+    const rawJson = await provider.analyze(buildAnalysisPrompt(context));
+    analysis = analysisSchema.parse(JSON.parse(rawJson));
     analysisSpinner.succeed("🤖 Running root cause analysis...");
   } catch (error) {
     analysisSpinner.fail("🤖 Running root cause analysis...");
     throw error;
   }
 
-  printReport(context, analysis);
+  printReport(context, analysis, { name: provider.name, model: provider.model });
 
   if (process.env.SLACK_WEBHOOK_URL) {
-    await postToSlack(buildSlackBlocks(context, analysis), process.env.SLACK_WEBHOOK_URL);
+    await postToSlack(
+      buildSlackBlocks(context, analysis, { name: provider.name, model: provider.model }),
+      process.env.SLACK_WEBHOOK_URL,
+    );
   }
 }
 

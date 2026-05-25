@@ -6,13 +6,17 @@
   "scripts": {
     "dev": "tsx src/agent.ts",
     "demo": "tsx src/agent.ts --demo",
+    "demo:openai": "CHURNSENTRY_PROVIDER=openai tsx src/agent.ts --demo",
+    "demo:copilot": "CHURNSENTRY_PROVIDER=copilot tsx src/agent.ts --demo",
+    "demo:claude": "CHURNSENTRY_PROVIDER=claude tsx src/agent.ts --demo",
     "typecheck": "tsc --noEmit",
-    "lint": "npm run typecheck"
+    "lint": "eslint src/"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",
     "chalk": "^5.3.0",
     "dotenv": "^16.4.5",
+    "openai": "^4.56.0",
     "ora": "^8.1.0",
     "zod": "^3.23.8"
   },
@@ -20,6 +24,8 @@
     "node": ">=20"
   },
   "devDependencies": {
+    "@typescript-eslint/parser": "^8.4.0",
+    "eslint": "^9.9.0",
     "@types/node": "^20.14.9",
     "tsx": "^4.19.0",
     "typescript": "^5.5.4"

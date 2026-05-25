@@ -12,6 +12,11 @@ export type ChurnAnalysis = {
   systemic_note?: string;
 };
 
+export type ProviderInfo = {
+  name: string;
+  model: string;
+};
+
 function formatPlan(stripeEvent: Record<string, unknown>): string {
   const nickname = typeof stripeEvent.plan_nickname === "string" ? stripeEvent.plan_nickname : "";
   const amount =
@@ -71,12 +76,17 @@ function confidenceBadge(confidence: ChurnAnalysis["confidence"]): string {
   }
 }
 
-export function printReport(context: ChurnContext, analysis: ChurnAnalysis): void {
+export function printReport(
+  context: ChurnContext,
+  analysis: ChurnAnalysis,
+  provider: ProviderInfo,
+): void {
   const header = chalk.bold.cyan("🏴‍☠️ ChurnSentry — Root Cause Report");
   const plan = formatPlan(context.stripeEvent);
   const canceledAt = formatCanceledAt(context.stripeEvent);
 
   console.log(header);
+  console.log(chalk.dim(`Provider: ${provider.name} (${provider.model})`));
   console.log("");
   console.log(chalk.bold("Customer"));
   console.log(`  ${chalk.bold("Name:")} ${context.customer.name}`);
@@ -109,6 +119,7 @@ export function printReport(context: ChurnContext, analysis: ChurnAnalysis): voi
 export function buildSlackBlocks(
   context: ChurnContext,
   analysis: ChurnAnalysis,
+  provider: ProviderInfo,
 ): { blocks: object[] } {
   const plan = formatPlan(context.stripeEvent);
   const blocks: object[] = [
@@ -118,6 +129,15 @@ export function buildSlackBlocks(
         type: "plain_text",
         text: `🚨 Churn Alert: ${context.customer.name}`,
       },
+    },
+    {
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `*Provider:* ${provider.name} (${provider.model})`,
+        },
+      ],
     },
     {
       type: "section",
