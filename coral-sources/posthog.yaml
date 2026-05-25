@@ -1,0 +1,122 @@
+# PostHog — custom Coral source
+#
+# Register with:  coral source add ./coral-sources/posthog.yaml
+# Query with:    coral sql "SELECT * FROM posthog.errors LIMIT 5"
+#
+# Replaces Sentry as ChurnSentry's error-tracking signal. PostHog's free tier
+# covers error tracking + product analytics + session replay, so a single Coral
+# source exposes richer churn signal than Sentry alone.
+
+source:
+  name: posthog
+  version: 1
+  description: PostHog error tracking, events, persons, and session recordings
+
+config:
+  api_key:
+    env: POSTHOG_API_KEY
+    required: true
+    description: Personal API key (Settings → Personal API keys)
+  project_id:
+    env: POSTHOG_PROJECT_ID
+    required: true
+    description: Numeric project ID
+  host:
+    env: POSTHOG_HOST
+    default: https://us.posthog.com
+    description: PostHog Cloud (us/eu) or self-hosted URL
+
+auth:
+  type: bearer
+  token: "{{ config.api_key }}"
+
+tables:
+  # ─── Error tracking ────────────────────────────────────────
+  - name: errors
+    description: Issues from PostHog Error Tracking (groups of similar exceptions)
+    endpoint:
+      method: GET
+      path: /api/projects/{{ config.project_id }}/error_tracking/issue/
+      pagination:
+        type: offset
+        page_param: offset
+        size_param: limit
+        size: 100
+      response_path: results
+    columns:
+      - { name: id,            type: string,    json: id }
+      - { name: name,          type: string,    json: name,         description: Exception type/message }
+      - { name: description,   type: string,    json: description }
+      - { name: status,        type: string,    json: status,       description: active | resolved | suppressed }
+      - { name: first_seen,    type: timestamp, json: first_seen }
+      - { name: last_seen,     type: timestamp, json: last_seen }
+      - { name: occurrences,   type: integer,   json: occurrences }
+      - { name: assignee_id,   type: string,    json: assignee.id }
+      - { name: library,       type: string,    json: library }
+
+  # ─── Events (raw analytics stream) ─────────────────────────
+  - name: events
+    description: Captured events (page views, custom events, $exception, etc.)
+    endpoint:
+      method: GET
+      path: /api/projects/{{ config.project_id }}/events/
+      pagination:
+        type: cursor
+        cursor_param: after
+        cursor_path: next
+        size_param: limit
+        size: 100
+      response_path: results
+    columns:
+      - { name: id,             type: string,    json: id }
+      - { name: event,          type: string,    json: event,           description: Event name e.g. $pageview, $exception }
+      - { name: timestamp,      type: timestamp, json: timestamp }
+      - { name: distinct_id,    type: string,    json: distinct_id }
+      - { name: person_id,      type: string,    json: person.id }
+      - { name: email,          type: string,    json: properties.email, description: Email if identified }
+      - { name: properties,     type: json,      json: properties }
+      - { name: current_url,    type: string,    json: properties.$current_url }
+
+  # ─── Persons (identified users) ────────────────────────────
+  - name: persons
+    description: Identified users with their merged properties
+    endpoint:
+      method: GET
+      path: /api/projects/{{ config.project_id }}/persons/
+      pagination:
+        type: offset
+        page_param: offset
+        size_param: limit
+        size: 100
+      response_path: results
+    columns:
+      - { name: id,             type: string,    json: id }
+      - { name: distinct_ids,   type: json,      json: distinct_ids }
+      - { name: email,          type: string,    json: properties.email }
+      - { name: name,           type: string,    json: properties.name }
+      - { name: created_at,     type: timestamp, json: created_at }
+      - { name: properties,     type: json,      json: properties }
+
+  # ─── Session recordings (rage-click & friction signals) ────
+  - name: session_recordings
+    description: Session replay metadata (durations, click/error counts, etc.)
+    endpoint:
+      method: GET
+      path: /api/projects/{{ config.project_id }}/session_recordings/
+      pagination:
+        type: cursor
+        cursor_param: after
+        cursor_path: next
+        size_param: limit
+        size: 50
+      response_path: results
+    columns:
+      - { name: id,                  type: string,    json: id }
+      - { name: distinct_id,         type: string,    json: distinct_id }
+      - { name: email,               type: string,    json: person.properties.email }
+      - { name: start_time,          type: timestamp, json: start_time }
+      - { name: end_time,            type: timestamp, json: end_time }
+      - { name: duration_seconds,    type: integer,   json: recording_duration }
+      - { name: click_count,         type: integer,   json: click_count }
+      - { name: rage_click_count,    type: integer,   json: rage_click_count }
+      - { name: console_error_count, type: integer,   json: console_error_count }
