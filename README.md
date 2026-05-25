@@ -2,7 +2,7 @@
 
 Churn post-mortems routinely take **45 minutes across five tabs**. ChurnSentry compresses that into **one SQL query, one AI analysis, one report**.
 
-ChurnSentry is a Claude Code hackathon project that investigates churned Stripe customers by joining Sentry, Intercom, GitHub, and Slack signals through Coral. It produces a crisp root-cause report and (optionally) posts it to Slack.
+ChurnSentry is a project that investigates churned Stripe customers by joining Sentry, Intercom, GitHub, and Slack signals through Coral. It produces a crisp root-cause report and (optionally) posts it to Slack.
 
 ## Architecture
 
