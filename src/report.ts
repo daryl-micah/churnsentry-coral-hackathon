@@ -10,12 +10,23 @@ export type ChurnAnalysis = {
   long_term_fix: string;
   systemic_risk: boolean;
   systemic_note?: string;
+  revenue_at_risk_usd?: number;
 };
 
 export type ProviderInfo = {
   name: string;
   model: string;
 };
+
+export type QueryTraceEntry = { label: string; sql: string };
+
+function formatUsd(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
 
 function formatPlan(stripeEvent: Record<string, unknown>): string {
   const nickname = typeof stripeEvent.plan_nickname === "string" ? stripeEvent.plan_nickname : "";
@@ -80,6 +91,7 @@ export function printReport(
   context: ChurnContext,
   analysis: ChurnAnalysis,
   provider: ProviderInfo,
+  trace: readonly QueryTraceEntry[] = [],
 ): void {
   const header = chalk.bold.cyan("🏴‍☠️ ChurnSentry — Root Cause Report");
   const plan = formatPlan(context.stripeEvent);
@@ -93,6 +105,13 @@ export function printReport(
   console.log(`  ${chalk.bold("Email:")} ${context.customer.email}`);
   console.log(`  ${chalk.bold("Plan:")} ${plan}`);
   console.log(`  ${chalk.bold("Canceled at:")} ${canceledAt}`);
+  if (typeof analysis.revenue_at_risk_usd === "number" && analysis.revenue_at_risk_usd > 0) {
+    console.log(
+      `  ${chalk.bold("Revenue at risk:")} ${chalk.bgGreen.black.bold(
+        ` ${formatUsd(analysis.revenue_at_risk_usd)}/yr `,
+      )}`,
+    );
+  }
   console.log("");
   console.log(
     `${chalk.bold("Root cause:")} ${rootCauseBadge(analysis.root_cause)}  ${chalk.bold(
@@ -100,9 +119,12 @@ export function printReport(
     )} ${confidenceBadge(analysis.confidence)}`,
   );
   console.log("");
+  console.log(chalk.bold("Summary"));
+  console.log(`  ${analysis.summary}`);
+  console.log("");
   console.log(chalk.bold("Signals"));
   for (const signal of analysis.signals) {
-    console.log(`  - ${chalk.dim(signal.source)} ${signal.finding}`);
+    console.log(`  - ${chalk.dim(`[${signal.source}]`)} ${signal.finding}`);
   }
   console.log("");
   console.log(chalk.bold("Actions"));
@@ -114,6 +136,27 @@ export function printReport(
     console.log("");
     console.log(chalk.bold.red(`⚠ Systemic risk detected.${note}`));
   }
+
+  if (trace.length > 0) {
+    console.log("");
+    console.log(chalk.bold("Coral queries"));
+    console.log(chalk.dim(`  ${trace.length} SQL statement(s) executed across ${countSchemas(trace)} sources via one Coral MCP connection.`));
+    for (const entry of trace) {
+      console.log(`  ${chalk.cyan("→")} ${chalk.bold(entry.label)}`);
+      console.log(chalk.dim(`    ${entry.sql}`));
+    }
+  }
+}
+
+function countSchemas(trace: readonly QueryTraceEntry[]): number {
+  const schemas = new Set<string>();
+  for (const entry of trace) {
+    const matches = entry.sql.match(/\b(stripe|posthog|plain|github|slack)\./gi) ?? [];
+    for (const m of matches) {
+      schemas.add(m.split(".")[0].toLowerCase());
+    }
+  }
+  return schemas.size;
 }
 
 export function buildSlackBlocks(
@@ -152,6 +195,9 @@ export function buildSlackBlocks(
         { type: "mrkdwn", text: `*Root cause*\n${analysis.root_cause}` },
         { type: "mrkdwn", text: `*Confidence*\n${analysis.confidence}` },
         { type: "mrkdwn", text: `*Plan*\n${plan}` },
+        ...(typeof analysis.revenue_at_risk_usd === "number" && analysis.revenue_at_risk_usd > 0
+          ? [{ type: "mrkdwn", text: `*Revenue at risk*\n${formatUsd(analysis.revenue_at_risk_usd)}/yr` }]
+          : []),
       ],
     },
     { type: "divider" },
@@ -192,7 +238,7 @@ export function buildSlackBlocks(
       elements: [
         {
           type: "mrkdwn",
-          text: "Powered by ChurnSentry + Coral",
+          text: "Powered by ChurnSentry + Coral (PostHog · Plain · Stripe · GitHub · Slack)",
         },
       ],
     },

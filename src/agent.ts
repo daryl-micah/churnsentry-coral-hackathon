@@ -3,11 +3,14 @@ import ora from "ora";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import {
-  getIntercomTickets,
+  addQueryTrace,
+  getPlainThreads,
+  getQueryTrace,
   getRecentDeploys,
-  getRecentSentryErrors,
+  getRecentPostHogErrors,
   getSlackMentions,
   getStripeChurnEvent,
+  resetQueryTrace,
 } from "./coral.js";
 import { buildAnalysisPrompt, type ChurnContext } from "./prompts.js";
 import { buildSlackBlocks, printReport, type ChurnAnalysis } from "./report.js";
@@ -27,6 +30,7 @@ const analysisSchema = z.object({
   long_term_fix: z.string().min(1),
   systemic_risk: z.boolean(),
   systemic_note: z.string().min(1).optional(),
+  revenue_at_risk_usd: z.number().nonnegative().default(0),
 });
 
 type CliOptions = {
@@ -104,7 +108,10 @@ async function loadFixture<T>(fileName: string): Promise<T> {
 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
-  await checkSources();
+  resetQueryTrace();
+  if (!options.demo) {
+    await checkSources();
+  }
 
   const providerName = options.provider ?? detectProvider();
   const provider = createProvider(providerName);
@@ -152,39 +159,61 @@ async function main(): Promise<void> {
     ? { owner: "demo", repo: "demo" }
     : parseGithubRepo(options.githubRepo as string);
 
-  const sentrySpinner = ora("🔎 Scanning Sentry for error patterns...").start();
-  const intercomSpinner = ora("💬 Pulling Intercom support history...").start();
+  if (options.demo) {
+    addQueryTrace("Stripe churn event", "SELECT c.id, c.email, c.name, s.* FROM stripe.customers c JOIN stripe.subscriptions s ON s.customer = c.id WHERE c.id = '<id>' AND s.status IN ('canceled','unpaid','past_due') LIMIT 5");
+  }
+
+  const posthogSpinner = ora("🔎 Scanning PostHog for error patterns...").start();
+  const plainSpinner = ora("💬 Pulling Plain support history...").start();
   const deploysSpinner = ora("🚀 Checking recent GitHub deploys...").start();
   const slackSpinner = ora("💬 Searching Slack for customer mentions...").start();
 
-  const [sentryErrors, intercomTickets, recentDeploys, slackMentions] =
+  const [posthogErrors, plainThreads, recentDeploys, slackMentions] =
     await Promise.all([
       (async () => {
         try {
+          if (options.demo) {
+            addQueryTrace(
+              "PostHog errors (custom Coral source)",
+              "SELECT e.id, e.name, e.status, e.first_seen, e.last_seen, e.occurrences FROM posthog.errors e LEFT JOIN posthog.events ev ON ev.event = '$exception' AND ev.email = '<email>' WHERE e.status = 'active' AND e.last_seen >= now() - interval '30 days' GROUP BY e.id, e.name, e.status, e.first_seen, e.last_seen, e.occurrences ORDER BY e.occurrences DESC LIMIT 10",
+            );
+          }
           const data = options.demo
-            ? await loadFixture<Record<string, unknown>[]>("sentry-errors.json")
-            : await getRecentSentryErrors(customer.email);
-          sentrySpinner.succeed("🔎 Scanning Sentry for error patterns...");
+            ? await loadFixture<Record<string, unknown>[]>("posthog-errors.json")
+            : await getRecentPostHogErrors(customer.email);
+          posthogSpinner.succeed("🔎 Scanning PostHog for error patterns...");
           return data;
         } catch (error) {
-          sentrySpinner.fail("🔎 Scanning Sentry for error patterns...");
+          posthogSpinner.fail("🔎 Scanning PostHog for error patterns...");
           throw error;
         }
       })(),
       (async () => {
         try {
+          if (options.demo) {
+            addQueryTrace(
+              "Plain support threads (custom Coral source)",
+              "SELECT t.id, t.title, t.status, t.priority, t.created_at, t.updated_at, t.assignee_name FROM plain.threads t JOIN plain.customers c ON c.id = t.customer_id WHERE c.email = '<email>' ORDER BY t.created_at DESC LIMIT 10",
+            );
+          }
           const data = options.demo
-            ? await loadFixture<Record<string, unknown>[]>("intercom-tickets.json")
-            : await getIntercomTickets(customer.email);
-          intercomSpinner.succeed("💬 Pulling Intercom support history...");
+            ? await loadFixture<Record<string, unknown>[]>("plain-threads.json")
+            : await getPlainThreads(customer.email);
+          plainSpinner.succeed("💬 Pulling Plain support history...");
           return data;
         } catch (error) {
-          intercomSpinner.fail("💬 Pulling Intercom support history...");
+          plainSpinner.fail("💬 Pulling Plain support history...");
           throw error;
         }
       })(),
       (async () => {
         try {
+          if (options.demo) {
+            addQueryTrace(
+              "GitHub recent deploys",
+              "SELECT r.tag_name, r.name, r.created_at, r.body, r.author_login FROM github.releases r WHERE r.owner = '<owner>' AND r.repo = '<repo>' AND r.created_at >= now() - interval '30 days' ORDER BY r.created_at DESC LIMIT 10",
+            );
+          }
           const data = options.demo
             ? await loadFixture<Record<string, unknown>[]>("recent-deploys.json")
             : await getRecentDeploys(owner, repo, 30);
@@ -197,6 +226,12 @@ async function main(): Promise<void> {
       })(),
       (async () => {
         try {
+          if (options.demo) {
+            addQueryTrace(
+              "Slack customer mentions",
+              "SELECT m.text, m.user_id, m.ts, m.channel_id FROM slack.messages m JOIN slack.channels c ON c.id = m.channel_id WHERE c.name LIKE '%' AND m.text ILIKE '%<name>%' ORDER BY m.ts DESC LIMIT 20",
+            );
+          }
           const data = options.demo
             ? await loadFixture<Record<string, unknown>[]>("slack-mentions.json")
             : await getSlackMentions(customer.name, "%");
@@ -212,8 +247,8 @@ async function main(): Promise<void> {
   const context: ChurnContext = {
     customer,
     stripeEvent: stripeRow,
-    sentryErrors,
-    intercomTickets,
+    posthogErrors,
+    plainThreads,
     recentDeploys,
     slackMentions,
   };
@@ -229,7 +264,8 @@ async function main(): Promise<void> {
     throw error;
   }
 
-  printReport(context, analysis, { name: provider.name, model: provider.model });
+  const trace = getQueryTrace();
+  printReport(context, analysis, { name: provider.name, model: provider.model }, trace);
 
   if (process.env.SLACK_WEBHOOK_URL) {
     await postToSlack(

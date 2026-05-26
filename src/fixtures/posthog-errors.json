@@ -1,0 +1,22 @@
+[
+  {
+    "id": "01HTX9F8RM-export-timeout",
+    "name": "ExportTimeoutError: Excel export exceeded 30s",
+    "description": "ExportService.runExport awaited worker promise > timeout",
+    "status": "active",
+    "library": "posthog-node",
+    "first_seen": "2026-05-10T07:45:00Z",
+    "last_seen": "2026-05-24T19:20:00Z",
+    "occurrences": 64
+  },
+  {
+    "id": "01HTX9G2K3-rage-click",
+    "name": "$rageclick on #export-button",
+    "description": "Repeated clicks on disabled export button within 4s",
+    "status": "active",
+    "library": "posthog-js",
+    "first_seen": "2026-05-12T10:02:00Z",
+    "last_seen": "2026-05-24T18:55:00Z",
+    "occurrences": 27
+  }
+]

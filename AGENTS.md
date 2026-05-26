@@ -2,11 +2,11 @@
 
 ## AI Provider
 
-This project supports three analysis backends. The active provider is set by `CHURNSENTRY_PROVIDER` or the `--provider` flag.
+This project supports four analysis backends. The active provider is set by `CHURNSENTRY_PROVIDER` or the `--provider` flag. **Default is `groq`** — free, fast, and signup-only.
 
-When using provider=copilot, note that `GITHUB_TOKEN` is shared with the Coral github source. One token, two jobs.
+When using `provider=copilot`, note that `GITHUB_TOKEN` is shared with the Coral github source. One token, two jobs.
 
-All providers receive identical prompts and return the same ChurnAnalysis JSON schema. Switching providers never requires changes to `coral.ts`, `report.ts`, or the SQL queries.
+All providers receive identical prompts and return the same `ChurnAnalysis` JSON schema. Switching providers never requires changes to `coral.ts`, `report.ts`, or the SQL queries.
 
 ## Query rules
 
@@ -14,6 +14,8 @@ All providers receive identical prompts and return the same ChurnAnalysis JSON s
 - Prefer a single JOIN query over multiple sequential queries.
 - `stripe.subscriptions` must be filtered by status for performance.
 - `slack.messages` must include a channel filter to avoid scanning all channels.
+- `posthog.events` must be filtered by `event` or `email` — the raw stream is huge.
+- `plain.*` queries pass through GraphQL; respect the cursor pagination defined in the YAML.
 
 ## Discovery workflow
 
@@ -22,8 +24,8 @@ All providers receive identical prompts and return the same ChurnAnalysis JSON s
 
 ## Source schemas
 
-- `stripe.*`
-- `sentry.*`
-- `intercom.*`
-- `github.*`
-- `slack.*`
+- `stripe.*` — bundled (customers, subscriptions, charges)
+- `posthog.*` — **custom YAML source** (`coral-sources/posthog.yaml`); tables: `errors`, `events`, `persons`, `session_recordings`
+- `plain.*` — **custom YAML source** (`coral-sources/plain.yaml`); tables: `threads`, `customers`, `events`
+- `github.*` — bundled (releases, deployments)
+- `slack.*` — bundled (messages, channels)

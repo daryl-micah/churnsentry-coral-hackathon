@@ -16,6 +16,21 @@ export type CoralQueryResult = {
   raw: Record<string, unknown>[];
 };
 
+export type QueryTrace = { label: string; sql: string };
+const queryTrace: QueryTrace[] = [];
+export function getQueryTrace(): readonly QueryTrace[] {
+  return queryTrace;
+}
+export function resetQueryTrace(): void {
+  queryTrace.length = 0;
+}
+function recordTrace(label: string, sql: string): void {
+  queryTrace.push({ label, sql: normalizeSql(sql) });
+}
+export function addQueryTrace(label: string, sql: string): void {
+  recordTrace(label, sql);
+}
+
 function escapeSqlString(value: string): string {
   return value.replace(/'/g, "''");
 }
@@ -45,6 +60,14 @@ export async function coralQuery(sql: string): Promise<Record<string, unknown>[]
   return parsed as Record<string, unknown>[];
 }
 
+async function tracedQuery(
+  label: string,
+  sql: string,
+): Promise<Record<string, unknown>[]> {
+  recordTrace(label, sql);
+  return coralQuery(sql);
+}
+
 export async function getStripeChurnEvent(
   customerId: string,
 ): Promise<Record<string, unknown>[]> {
@@ -60,40 +83,44 @@ export async function getStripeChurnEvent(
       AND s.status IN ('canceled','unpaid','past_due')
     LIMIT 5
   `;
-  return coralQuery(sql);
+  return tracedQuery("Stripe churn event", sql);
 }
 
-export async function getRecentSentryErrors(
-  customerEmail: string,
-): Promise<Record<string, unknown>[]> {
-  const safeEmail = emailSchema.parse(customerEmail);
-  void safeEmail;
-  const sql = `
-    SELECT i.id, i.title, i.culprit, i.status, i.level,
-           i.first_seen, i.last_seen, i.times_seen, i.project_slug
-    FROM sentry.issues i
-    WHERE i.status = 'unresolved'
-      AND i.last_seen >= now() - interval '30 days'
-    ORDER BY i.times_seen DESC
-    LIMIT 10
-  `;
-  return coralQuery(sql);
-}
-
-export async function getIntercomTickets(
+export async function getRecentPostHogErrors(
   customerEmail: string,
 ): Promise<Record<string, unknown>[]> {
   const safeEmail = escapeSqlString(emailSchema.parse(customerEmail));
   const sql = `
-    SELECT conv.id, conv.state, conv.read, conv.created_at, conv.updated_at,
-           conv.subject, conv.assignee_type, conv.open
-    FROM intercom.conversations conv
-    JOIN intercom.contacts ct ON ct.id = conv.contact_id
-    WHERE ct.email = '${safeEmail}'
-    ORDER BY conv.created_at DESC
+    SELECT e.id, e.name, e.description, e.status, e.library,
+           e.first_seen, e.last_seen, e.occurrences
+    FROM posthog.errors e
+    LEFT JOIN posthog.events ev
+      ON ev.event = '$exception' AND ev.email = '${safeEmail}'
+    WHERE e.status = 'active'
+      AND e.last_seen >= now() - interval '30 days'
+    GROUP BY e.id, e.name, e.description, e.status, e.library,
+             e.first_seen, e.last_seen, e.occurrences
+    ORDER BY e.occurrences DESC
     LIMIT 10
   `;
-  return coralQuery(sql);
+  return tracedQuery("PostHog errors (custom Coral source)", sql);
+}
+
+export async function getPlainThreads(
+  customerEmail: string,
+): Promise<Record<string, unknown>[]> {
+  const safeEmail = escapeSqlString(emailSchema.parse(customerEmail));
+  const sql = `
+    SELECT t.id, t.title, t.status, t.priority,
+           t.created_at, t.updated_at, t.status_changed_at,
+           t.assignee_name
+    FROM plain.threads t
+    JOIN plain.customers c ON c.id = t.customer_id
+    WHERE c.email = '${safeEmail}'
+    ORDER BY t.created_at DESC
+    LIMIT 10
+  `;
+  return tracedQuery("Plain support threads (custom Coral source)", sql);
 }
 
 export async function getRecentDeploys(
@@ -116,7 +143,7 @@ export async function getRecentDeploys(
     ORDER BY r.created_at DESC
     LIMIT 10
   `;
-  return coralQuery(sql);
+  return tracedQuery("GitHub recent deploys", sql);
 }
 
 export async function getSlackMentions(
@@ -140,7 +167,7 @@ export async function getSlackMentions(
     ORDER BY m.ts DESC
     LIMIT 20
   `;
-  return coralQuery(sql);
+  return tracedQuery("Slack customer mentions", sql);
 }
 
 export async function runCoralQuery(customerId: string): Promise<CoralQueryResult> {
