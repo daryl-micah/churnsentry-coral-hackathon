@@ -14,7 +14,7 @@ import {
 } from "./coral.js";
 import { buildAnalysisPrompt, type ChurnContext } from "./prompts.js";
 import { buildSlackBlocks, printReport, type ChurnAnalysis } from "./report.js";
-import { createProvider, detectProvider } from "./providers/index.js";
+import { createProvider, detectProvider, detectProviderForDemo } from "./providers/index.js";
 import type { ProviderName } from "./providers/types.js";
 import { checkSources } from "./sources.js";
 import { postToSlack } from "./webhook.js";
@@ -42,7 +42,7 @@ type CliOptions = {
 
 function parseArgs(args: string[]): CliOptions {
   const options: CliOptions = { demo: false };
-  const providerSchema = z.enum(["claude", "openai", "copilot"]);
+  const providerSchema = z.enum(["claude", "openai", "copilot", "groq"]);
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
     if (arg === "--demo") {
@@ -113,7 +113,9 @@ async function main(): Promise<void> {
     await checkSources();
   }
 
-  const providerName = options.provider ?? detectProvider();
+  const providerName = options.demo
+    ? detectProviderForDemo(options.provider)
+    : (options.provider ?? detectProvider());
   const provider = createProvider(providerName);
   console.log(`🤖 Analysis provider: ${provider.name} (${provider.model})`);
 

@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "tsx src/agent.ts",
     "demo": "tsx src/agent.ts --demo",
-    "demo:openai": "CHURNSENTRY_PROVIDER=openai tsx src/agent.ts --demo",
+    "demo:groq": "CHURNSENTRY_PROVIDER=groq tsx src/agent.ts --demo",
     "demo:copilot": "CHURNSENTRY_PROVIDER=copilot tsx src/agent.ts --demo",
     "demo:claude": "CHURNSENTRY_PROVIDER=claude tsx src/agent.ts --demo",
+    "demo:openai": "CHURNSENTRY_PROVIDER=openai tsx src/agent.ts --demo",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/"
   },
