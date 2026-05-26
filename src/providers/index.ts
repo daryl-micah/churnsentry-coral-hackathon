@@ -38,15 +38,16 @@ export function detectProvider(): ProviderName {
 }
 
 /**
- * For `--demo` runs: if no AI credentials are available, fall back to the
- * offline provider so reviewers can run the pipeline without signing up.
+ * For `--demo` runs: only auto-select a provider when its credential is
+ * unambiguously usable. GROQ_API_KEY is the one zero-ambiguity case. A
+ * raw GITHUB_TOKEN may be a PAT that Copilot rejects, so we don't pick
+ * Copilot implicitly. Claude/OpenAI require explicit opt-in too —
+ * judges shouldn't accidentally burn paid API credits from a stray env
+ * var. Everything else falls back to the offline canned analyzer.
  */
 export function detectProviderForDemo(explicit?: ProviderName): ProviderName {
   if (explicit) return explicit;
   if (process.env.CHURNSENTRY_PROVIDER) return detectProvider();
   if (process.env.GROQ_API_KEY) return "groq";
-  if (process.env.GITHUB_TOKEN) return "copilot";
-  if (process.env.ANTHROPIC_API_KEY) return "claude";
-  if (process.env.OPENAI_API_KEY) return "openai";
   return "offline";
 }

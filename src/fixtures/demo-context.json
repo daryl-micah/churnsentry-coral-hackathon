@@ -31,16 +31,16 @@
       "occurrences": 64
     }
   ],
-  "plainThreads": [
+  "githubIssues": [
     {
-      "id": "thr_01HTX9JBNX",
-      "title": "Exports keep timing out — losing the whole download",
-      "status": "TODO",
-      "priority": 0,
+      "number": 4821,
+      "title": "[DemoCo] Excel export times out at 30s — losing the whole download",
+      "state": "open",
+      "user_login": "support-bot",
       "created_at": "2026-05-12T11:05:00Z",
       "updated_at": "2026-05-22T16:40:00Z",
-      "status_changed_at": "2026-05-22T16:40:00Z",
-      "assignee_name": "Priya Shah"
+      "comments": 8,
+      "labels": ["customer-reported", "P0", "export"]
     }
   ],
   "recentDeploys": [

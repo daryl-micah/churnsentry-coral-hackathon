@@ -151,7 +151,7 @@ export function printReport(
 function countSchemas(trace: readonly QueryTraceEntry[]): number {
   const schemas = new Set<string>();
   for (const entry of trace) {
-    const matches = entry.sql.match(/\b(stripe|posthog|plain|github|slack)\./gi) ?? [];
+    const matches = entry.sql.match(/\b(stripe|posthog|github|slack)\./gi) ?? [];
     for (const m of matches) {
       schemas.add(m.split(".")[0].toLowerCase());
     }
@@ -238,7 +238,7 @@ export function buildSlackBlocks(
       elements: [
         {
           type: "mrkdwn",
-          text: "Powered by ChurnSentry + Coral (PostHog · Plain · Stripe · GitHub · Slack)",
+          text: "Powered by ChurnSentry + Coral (PostHog · Stripe · GitHub · Slack)",
         },
       ],
     },

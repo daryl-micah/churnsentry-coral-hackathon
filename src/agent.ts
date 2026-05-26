@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import {
   addQueryTrace,
-  getPlainThreads,
+  getGithubIssuesForCustomer,
   getQueryTrace,
   getRecentDeploys,
   getRecentPostHogErrors,
@@ -166,11 +166,11 @@ async function main(): Promise<void> {
   }
 
   const posthogSpinner = ora("🔎 Scanning PostHog for error patterns...").start();
-  const plainSpinner = ora("💬 Pulling Plain support history...").start();
+  const issuesSpinner = ora("🐛 Searching GitHub issues for customer mentions...").start();
   const deploysSpinner = ora("🚀 Checking recent GitHub deploys...").start();
   const slackSpinner = ora("💬 Searching Slack for customer mentions...").start();
 
-  const [posthogErrors, plainThreads, recentDeploys, slackMentions] =
+  const [posthogErrors, githubIssues, recentDeploys, slackMentions] =
     await Promise.all([
       (async () => {
         try {
@@ -194,17 +194,17 @@ async function main(): Promise<void> {
         try {
           if (options.demo) {
             addQueryTrace(
-              "Plain support threads (custom Coral source)",
-              "SELECT t.id, t.title, t.status, t.priority, t.created_at, t.updated_at, t.assignee_name FROM plain.threads t JOIN plain.customers c ON c.id = t.customer_id WHERE c.email = '<email>' ORDER BY t.created_at DESC LIMIT 10",
+              "GitHub issues mentioning customer",
+              "SELECT i.number, i.title, i.state, i.user_login, i.created_at, i.updated_at, i.comments, i.labels FROM github.issues i WHERE i.owner = '<owner>' AND i.repo = '<repo>' AND (i.title ILIKE '%<name>%' OR i.body ILIKE '%<name>%') ORDER BY i.created_at DESC LIMIT 10",
             );
           }
           const data = options.demo
-            ? await loadFixture<Record<string, unknown>[]>("plain-threads.json")
-            : await getPlainThreads(customer.email);
-          plainSpinner.succeed("💬 Pulling Plain support history...");
+            ? await loadFixture<Record<string, unknown>[]>("github-issues.json")
+            : await getGithubIssuesForCustomer(owner, repo, customer.name);
+          issuesSpinner.succeed("🐛 Searching GitHub issues for customer mentions...");
           return data;
         } catch (error) {
-          plainSpinner.fail("💬 Pulling Plain support history...");
+          issuesSpinner.fail("🐛 Searching GitHub issues for customer mentions...");
           throw error;
         }
       })(),
@@ -250,7 +250,7 @@ async function main(): Promise<void> {
     customer,
     stripeEvent: stripeRow,
     posthogErrors,
-    plainThreads,
+    githubIssues,
     recentDeploys,
     slackMentions,
   };

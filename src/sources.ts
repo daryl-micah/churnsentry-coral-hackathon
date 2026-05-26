@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
 
-const REQUIRED_SOURCES = ["stripe", "posthog", "plain", "github", "slack"] as const;
+const REQUIRED_SOURCES = ["stripe", "posthog", "github", "slack"] as const;
 
 export type SourceStatus = Record<(typeof REQUIRED_SOURCES)[number], boolean>;
 
@@ -30,7 +30,7 @@ export async function checkSources(): Promise<SourceStatus> {
   if (missing.length > 0) {
     for (const source of missing) {
       console.error(`❌ Missing source: ${source}`);
-      if (source === "posthog" || source === "plain") {
+      if (source === "posthog") {
         console.error(`Run: coral source add ./coral-sources/${source}.yaml`);
       } else {
         console.error(`Run: coral source add --interactive ${source}`);
@@ -42,7 +42,6 @@ export async function checkSources(): Promise<SourceStatus> {
   return {
     stripe: true,
     posthog: true,
-    plain: true,
     github: true,
     slack: true,
   };

@@ -33,9 +33,8 @@ else
   yellow "• .env already exists — leaving it alone."
 fi
 
-green "→ Registering custom Coral sources (PostHog, Plain)..."
+green "→ Registering custom Coral source (PostHog)..."
 coral source add ./coral-sources/posthog.yaml || yellow "• posthog source already registered or failed; check 'coral source list'."
-coral source add ./coral-sources/plain.yaml   || yellow "• plain source already registered or failed; check 'coral source list'."
 
 green "→ Registering bundled Coral sources (Stripe, GitHub, Slack)..."
 for src in stripe github slack; do
@@ -55,6 +54,6 @@ fi
 
 green ""
 green "ChurnSentry is set up. Next:"
-echo "  1. Fill in your free API keys in .env (Groq, PostHog, Plain)"
+echo "  1. Fill in your free API keys in .env (Groq, PostHog)"
 echo "  2. Run: npm run demo"
 echo "  3. Or live: npm run dev -- --customer-id cus_xxx --github-repo owner/repo"

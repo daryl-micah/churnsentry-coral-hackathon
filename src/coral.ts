@@ -106,21 +106,31 @@ export async function getRecentPostHogErrors(
   return tracedQuery("PostHog errors (custom Coral source)", sql);
 }
 
-export async function getPlainThreads(
-  customerEmail: string,
+export async function getGithubIssuesForCustomer(
+  owner: string,
+  repo: string,
+  customerName: string,
 ): Promise<Record<string, unknown>[]> {
-  const safeEmail = escapeSqlString(emailSchema.parse(customerEmail));
+  const parsed = z
+    .object({
+      owner: ownerSchema,
+      repo: repoSchema,
+      customerName: customerNameSchema,
+    })
+    .parse({ owner, repo, customerName });
+  const safeOwner = escapeSqlString(parsed.owner);
+  const safeRepo = escapeSqlString(parsed.repo);
+  const safeName = escapeSqlString(parsed.customerName);
   const sql = `
-    SELECT t.id, t.title, t.status, t.priority,
-           t.created_at, t.updated_at, t.status_changed_at,
-           t.assignee_name
-    FROM plain.threads t
-    JOIN plain.customers c ON c.id = t.customer_id
-    WHERE c.email = '${safeEmail}'
-    ORDER BY t.created_at DESC
+    SELECT i.number, i.title, i.state, i.user_login,
+           i.created_at, i.updated_at, i.comments, i.labels
+    FROM github.issues i
+    WHERE i.owner = '${safeOwner}' AND i.repo = '${safeRepo}'
+      AND (i.title ILIKE '%${safeName}%' OR i.body ILIKE '%${safeName}%')
+    ORDER BY i.created_at DESC
     LIMIT 10
   `;
-  return tracedQuery("Plain support threads (custom Coral source)", sql);
+  return tracedQuery("GitHub issues mentioning customer", sql);
 }
 
 export async function getRecentDeploys(

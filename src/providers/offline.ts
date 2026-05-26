@@ -23,9 +23,9 @@ export class OfflineProvider implements AnalysisProvider {
             "ExportTimeoutError on ExportService.runExport — 64 occurrences across 14 days; correlated rage-clicks on #export-button.",
         },
         {
-          source: "Plain",
+          source: "GitHub",
           finding:
-            "Two open support threads ('Exports keep timing out', 'Can we get a CSV export option?') with urgent priority and no resolution.",
+            "Issue #4821 ('Excel export times out at 30s') labelled P0/customer-reported is still open with 8 comments, plus feature request #4834 for CSV export co-signed by 3 other accounts.",
         },
         {
           source: "GitHub",

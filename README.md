@@ -1,6 +1,6 @@
 # ChurnSentry
 
-> **A Coral-powered enterprise agent that investigates churned Stripe customers and produces a root-cause report — across five tools, in one SQL query, on a $0/month stack.**
+> **A Coral-powered enterprise agent that investigates churned Stripe customers and produces a root-cause report — across four tools, in one cross-source SQL query, on a $0/month stack.**
 
 Built for the [WeMakeDevs Coral hackathon](https://www.wemakedevs.org/hackathons/coral), Track 1 — *Enterprise Agent*.
 
@@ -12,8 +12,8 @@ Churn post-mortems routinely take **45 minutes across five tabs**. ChurnSentry c
 
 | | |
 |---|---|
-| 🆓 **$0 stack** | PostHog (free tier) + Plain (free tier) + Groq (free tier) + Stripe/GitHub/Slack APIs — no paid SaaS required. See [Cost](#cost) below. |
-| 🧬 **Two custom Coral sources** | We authored [`coral-sources/posthog.yaml`](./coral-sources/posthog.yaml) and [`coral-sources/plain.yaml`](./coral-sources/plain.yaml) — net-new tables for Coral's SQL surface area. |
+| 🆓 **$0 stack** | PostHog (free tier) + Groq (free tier) + Stripe / GitHub Issues / Slack APIs — no paid SaaS required. See [Cost](#cost) below. |
+| 🧬 **Custom Coral source** | We authored [`coral-sources/posthog.yaml`](./coral-sources/posthog.yaml) — a net-new set of tables for Coral's SQL surface area (errors, events, persons, session recordings). |
 | 🔍 **Transparent SQL** | Every report prints the actual cross-source queries that were executed against Coral. No "trust me" black box. |
 | 💰 **Revenue framing** | Each report quantifies annualised USD at risk — judges and execs both care. |
 | 🔌 **Pluggable AI** | Default is free Groq. Swap to Copilot / Claude / OpenAI by changing one env var. |
@@ -30,8 +30,7 @@ flowchart TD
 
   C --> D[(stripe.*)]
   C --> E[(posthog.*)\ncustom YAML source]
-  C --> F[(plain.*)\ncustom YAML source]
-  C --> G[(github.*)]
+  C --> G[(github.*)\nreleases + issues]
   C --> H[(slack.*)]
 
   B --> I{AI Provider\nCHURNSENTRY_PROVIDER}
@@ -60,16 +59,18 @@ We connect Coral to Claude Code via the MCP stdio bridge:
 claude mcp add --scope user coral -- coral mcp-stdio
 ```
 
-The agent executes `coral sql --format json` to fetch unified, typed rows. **The cross-source JOIN is the demo** — it combines a custom PostHog source with Coral's bundled Stripe and Slack:
+The agent executes `coral sql --format json` to fetch unified, typed rows. **The cross-source JOIN is the demo** — it combines our custom PostHog source with Coral's bundled Stripe and GitHub:
 
 ```sql
 SELECT s.customer, s.canceled_at, s.plan_amount,
        p.name AS error, p.occurrences, p.last_seen,
-       t.title AS support_thread, t.status AS thread_status
+       gi.number AS issue_number, gi.title AS issue_title, gi.state
 FROM   stripe.subscriptions s
 JOIN   posthog.persons      pp ON pp.email = s.customer_email
 JOIN   posthog.errors        p ON p.last_seen >= s.canceled_at - interval '7 days'
-LEFT JOIN plain.threads      t ON t.customer_email = s.customer_email
+LEFT JOIN github.issues     gi ON (gi.title ILIKE '%' || s.customer_name || '%'
+                                OR gi.body  ILIKE '%' || s.customer_name || '%')
+                              AND gi.state = 'open'
 WHERE  s.status = 'canceled'
   AND  s.canceled_at >= now() - interval '30 days'
 ORDER BY p.occurrences DESC;
@@ -77,14 +78,15 @@ ORDER BY p.occurrences DESC;
 
 **Benchmark:** using Coral is ~2x more cost-efficient than calling each provider MCP separately (no duplicated auth, no pagination round-trips, far fewer tool calls).
 
-### Custom Coral sources
+### Custom Coral source
 
-Coral bundles Sentry/Stripe/GitHub/Slack/Linear/Datadog — but not PostHog or Plain. So we authored both:
+Coral bundles Sentry/Stripe/GitHub/Slack/Linear/Datadog — but not PostHog. So we authored it:
 
 | File | Tables | Replaces |
 |---|---|---|
 | [`coral-sources/posthog.yaml`](./coral-sources/posthog.yaml) | `posthog.errors`, `posthog.events`, `posthog.persons`, `posthog.session_recordings` | Sentry |
-| [`coral-sources/plain.yaml`](./coral-sources/plain.yaml) | `plain.threads`, `plain.customers`, `plain.events` | Intercom |
+
+Customer-support signal comes from `github.issues` (Coral's bundled `github` source) — no custom YAML needed there, and most teams already file customer-reported bugs in GitHub anyway.
 
 Walkthrough + verification queries: [`coral-sources/README.md`](./coral-sources/README.md).
 
@@ -96,14 +98,14 @@ Walkthrough + verification queries: [`coral-sources/README.md`](./coral-sources/
 # 1. Install Coral
 brew install withcoral/tap/coral
 
-# 2. One-command setup (registers sources, copies .env, installs npm)
+# 2. One-command setup (registers the PostHog YAML, copies .env, installs npm)
 ./scripts/setup.sh
 
 # 3. Wire Coral into Claude Code
 claude mcp add --scope user coral -- coral mcp-stdio
 npx skills add withcoral/skills
 
-# 4. Fill .env with free API keys (Groq, PostHog, Plain), then:
+# 4. Fill .env with free API keys (Groq, PostHog), then:
 npm run dev -- --customer-id cus_xxx --github-repo myorg/myapp
 ```
 
@@ -137,17 +139,17 @@ ChurnSentry is engineered to run on **$0/month** for typical hackathon and small
 | Component | Paid stack | ChurnSentry (free stack) |
 |---|---|---|
 | Error tracking | Sentry Team — **$26/mo** | PostHog Cloud free tier — **$0** |
-| Customer support | Intercom Essential — **$74/mo** | Plain free tier — **$0** |
+| Customer support | Intercom Essential — **$74/mo** | GitHub Issues — **$0** |
 | AI analysis | Claude / GPT-4o — **~$15/mo** for one investigation/day | Groq llama-3.3-70b free tier — **$0** |
 | Cross-source SQL | n/a (build it yourself) | Coral — **$0** (open-source) |
 | **Total** | **~$115/mo** | **$0/mo** |
 
-The trade-off is honest: free-tier quotas exist. The README's free-tier links are current as of 2026. If you outgrow them, every component has a paid upgrade path (or a self-hosted OSS alternative) — but the project is structured so most users never need one.
+The trade-off is honest: free-tier quotas exist. Free-tier links are current as of 2026. If you outgrow them, every component has a paid upgrade path (or a self-hosted OSS alternative) — but the project is structured so most users never need one.
 
 ---
 
 ## Why Coral
 
-Without Coral, this agent needs **five separate MCP servers**, each with its own auth, pagination, and rate limits. That explodes to 20+ tool calls per investigation. With Coral, it's **one SQL runtime, one MCP connection, and cross-source JOINs in a single query** — *plus* two custom YAML sources of our own that extend Coral's SQL surface to PostHog and Plain.
+Without Coral, this agent needs **four separate MCP servers**, each with its own auth, pagination, and rate limits. That explodes to 20+ tool calls per investigation. With Coral, it's **one SQL runtime, one MCP connection, and cross-source JOINs in a single query** — *plus* one custom YAML source of our own that extends Coral's SQL surface to PostHog.
 
-That's the "Best Use of Coral" angle: we didn't just consume Coral's bundled sources, we shipped two new ones.
+That's the "Best Use of Coral" angle: we didn't just consume Coral's bundled sources, we shipped a new one.

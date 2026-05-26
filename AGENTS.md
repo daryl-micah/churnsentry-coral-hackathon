@@ -15,7 +15,7 @@ All providers receive identical prompts and return the same `ChurnAnalysis` JSON
 - `stripe.subscriptions` must be filtered by status for performance.
 - `slack.messages` must include a channel filter to avoid scanning all channels.
 - `posthog.events` must be filtered by `event` or `email` — the raw stream is huge.
-- `plain.*` queries pass through GraphQL; respect the cursor pagination defined in the YAML.
+- `github.issues` queries must include an `owner` and `repo` filter, and prefer `ILIKE` matches on title/body for customer-name correlation.
 
 ## Discovery workflow
 
@@ -26,6 +26,5 @@ All providers receive identical prompts and return the same `ChurnAnalysis` JSON
 
 - `stripe.*` — bundled (customers, subscriptions, charges)
 - `posthog.*` — **custom YAML source** (`coral-sources/posthog.yaml`); tables: `errors`, `events`, `persons`, `session_recordings`
-- `plain.*` — **custom YAML source** (`coral-sources/plain.yaml`); tables: `threads`, `customers`, `events`
-- `github.*` — bundled (releases, deployments)
+- `github.*` — bundled (releases, issues, deployments)
 - `slack.*` — bundled (messages, channels)
