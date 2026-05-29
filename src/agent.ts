@@ -37,16 +37,21 @@ type CliOptions = {
   customerId?: string;
   githubRepo?: string;
   demo: boolean;
+  json: boolean;
   provider?: ProviderName;
 };
 
 function parseArgs(args: string[]): CliOptions {
-  const options: CliOptions = { demo: false };
+  const options: CliOptions = { demo: false, json: false };
   const providerSchema = z.enum(["claude", "openai", "copilot", "groq"]);
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
     if (arg === "--demo") {
       options.demo = true;
+      continue;
+    }
+    if (arg === "--json") {
+      options.json = true;
       continue;
     }
     if (arg === "--customer-id") {
@@ -117,7 +122,9 @@ async function main(): Promise<void> {
     ? detectProviderForDemo(options.provider)
     : (options.provider ?? detectProvider());
   const provider = createProvider(providerName);
-  console.log(`🤖 Analysis provider: ${provider.name} (${provider.model})`);
+  if (!options.json) {
+    console.log(`🤖 Analysis provider: ${provider.name} (${provider.model})`);
+  }
 
   if (!options.demo && !options.customerId) {
     console.error("Missing required --customer-id");
@@ -267,6 +274,23 @@ async function main(): Promise<void> {
   }
 
   const trace = getQueryTrace();
+
+  if (options.json) {
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          provider: { name: provider.name, model: provider.model },
+          context,
+          analysis,
+          trace,
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    return;
+  }
+
   printReport(context, analysis, { name: provider.name, model: provider.model }, trace);
 
   if (process.env.SLACK_WEBHOOK_URL) {

@@ -10,6 +10,7 @@
     "demo:copilot": "CHURNSENTRY_PROVIDER=copilot tsx src/agent.ts --demo",
     "demo:claude": "CHURNSENTRY_PROVIDER=claude tsx src/agent.ts --demo",
     "demo:openai": "CHURNSENTRY_PROVIDER=openai tsx src/agent.ts --demo",
+    "snapshot": "tsx src/agent.ts --demo --json > web/src/data/snapshot.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/"
   },
