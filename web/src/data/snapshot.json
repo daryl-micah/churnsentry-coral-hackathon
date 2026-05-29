@@ -1,0 +1,143 @@
+{
+  "provider": {
+    "name": "Offline (canned demo)",
+    "model": "no-network"
+  },
+  "context": {
+    "customer": {
+      "id": "cus_demo",
+      "email": "churn@demo.co",
+      "name": "DemoCo"
+    },
+    "stripeEvent": {
+      "id": "cus_demo",
+      "email": "churn@demo.co",
+      "name": "DemoCo",
+      "description": "Demo customer",
+      "sub_id": "sub_demo",
+      "status": "canceled",
+      "cancel_at": null,
+      "canceled_at": "2026-05-20T10:12:00Z",
+      "current_period_end": "2026-05-22T00:00:00Z",
+      "plan_amount": 9900,
+      "plan_currency": "usd",
+      "plan_interval": "month",
+      "plan_nickname": "Pro"
+    },
+    "posthogErrors": [
+      {
+        "id": "01HTX9F8RM-export-timeout",
+        "name": "ExportTimeoutError: Excel export exceeded 30s",
+        "description": "ExportService.runExport awaited worker promise > timeout",
+        "status": "active",
+        "library": "posthog-node",
+        "first_seen": "2026-05-10T07:45:00Z",
+        "last_seen": "2026-05-24T19:20:00Z",
+        "occurrences": 64
+      },
+      {
+        "id": "01HTX9G2K3-rage-click",
+        "name": "$rageclick on #export-button",
+        "description": "Repeated clicks on disabled export button within 4s",
+        "status": "active",
+        "library": "posthog-js",
+        "first_seen": "2026-05-12T10:02:00Z",
+        "last_seen": "2026-05-24T18:55:00Z",
+        "occurrences": 27
+      }
+    ],
+    "githubIssues": [
+      {
+        "number": 4821,
+        "title": "[DemoCo] Excel export times out at 30s — losing the whole download",
+        "state": "open",
+        "user_login": "support-bot",
+        "created_at": "2026-05-12T11:05:00Z",
+        "updated_at": "2026-05-22T16:40:00Z",
+        "comments": 8,
+        "labels": [
+          "customer-reported",
+          "P0",
+          "export"
+        ]
+      },
+      {
+        "number": 4834,
+        "title": "Add CSV export option (DemoCo + 3 others asked)",
+        "state": "open",
+        "user_login": "priya",
+        "created_at": "2026-05-18T08:20:00Z",
+        "updated_at": "2026-05-20T13:10:00Z",
+        "comments": 3,
+        "labels": [
+          "feature-request",
+          "export"
+        ]
+      }
+    ],
+    "recentDeploys": [
+      {
+        "tag_name": "v2.8.1",
+        "name": "Billing hotfix",
+        "created_at": "2026-05-21T12:00:00Z",
+        "published_at": "2026-05-21T12:30:00Z",
+        "body": "Patch for billing retry logic.",
+        "author_login": "release-bot"
+      }
+    ],
+    "slackMentions": [
+      {
+        "text": "Heads up, DemoCo reported repeated billing failures after the last deploy.",
+        "user_id": "U12345",
+        "ts": "1716508800.000100",
+        "channel_id": "C12345"
+      }
+    ]
+  },
+  "analysis": {
+    "summary": "DemoCo churned after repeated Excel export timeouts triggered by the v3.4.2 deploy. Engineering shipped a partial fix but the customer's pain cycle had already crossed three weeks and one paid renewal.",
+    "root_cause": "bug",
+    "confidence": "High",
+    "signals": [
+      {
+        "source": "PostHog",
+        "finding": "ExportTimeoutError on ExportService.runExport — 64 occurrences across 14 days; correlated rage-clicks on #export-button."
+      },
+      {
+        "source": "GitHub",
+        "finding": "Issue #4821 ('Excel export times out at 30s') labelled P0/customer-reported is still open with 8 comments, plus feature request #4834 for CSV export co-signed by 3 other accounts."
+      },
+      {
+        "source": "GitHub",
+        "finding": "Deploy v3.4.2 (\"Export service timeouts patch\") landed 1 day before cancellation — fix was incomplete."
+      }
+    ],
+    "immediate_action": "Ship a streaming CSV export path for affected customers and offer DemoCo a free month + personal follow-up from CS.",
+    "long_term_fix": "Add an SLO on export latency in PostHog + page on regression; require export-touching PRs to include a load test.",
+    "systemic_risk": true,
+    "systemic_note": "Same ExportTimeoutError affecting 11 other paying accounts on Growth plan — proactive outreach recommended.",
+    "revenue_at_risk_usd": 1188
+  },
+  "trace": [
+    {
+      "label": "Stripe churn event",
+      "sql": "SELECT c.id, c.email, c.name, s.* FROM stripe.customers c JOIN stripe.subscriptions s ON s.customer = c.id WHERE c.id = '<id>' AND s.status IN ('canceled','unpaid','past_due') LIMIT 5"
+    },
+    {
+      "label": "PostHog errors (custom Coral source)",
+      "sql": "SELECT e.id, e.name, e.status, e.first_seen, e.last_seen, e.occurrences FROM posthog.errors e LEFT JOIN posthog.events ev ON ev.event = '$exception' AND ev.email = '<email>' WHERE e.status = 'active' AND e.last_seen >= now() - interval '30 days' GROUP BY e.id, e.name, e.status, e.first_seen, e.last_seen, e.occurrences ORDER BY e.occurrences DESC LIMIT 10"
+    },
+    {
+      "label": "GitHub issues mentioning customer",
+      "sql": "SELECT i.number, i.title, i.state, i.user_login, i.created_at, i.updated_at, i.comments, i.labels FROM github.issues i WHERE i.owner = '<owner>' AND i.repo = '<repo>' AND (i.title ILIKE '%<name>%' OR i.body ILIKE '%<name>%') ORDER BY i.created_at DESC LIMIT 10"
+    },
+    {
+      "label": "GitHub recent deploys",
+      "sql": "SELECT r.tag_name, r.name, r.created_at, r.body, r.author_login FROM github.releases r WHERE r.owner = '<owner>' AND r.repo = '<repo>' AND r.created_at >= now() - interval '30 days' ORDER BY r.created_at DESC LIMIT 10"
+    },
+    {
+      "label": "Slack customer mentions",
+      "sql": "SELECT m.text, m.user_id, m.ts, m.channel_id FROM slack.messages m JOIN slack.channels c ON c.id = m.channel_id WHERE c.name LIKE '%' AND m.text ILIKE '%<name>%' ORDER BY m.ts DESC LIMIT 20"
+    }
+  ]
+}

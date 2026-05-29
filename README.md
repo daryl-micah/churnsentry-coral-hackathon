@@ -117,6 +117,18 @@ npm run demo
 
 Runs the full pipeline against committed fixtures and falls back to an **offline canned analyzer** if no AI keys are set — judges can see the complete output in under 30 seconds without provisioning a single account. With a Groq key in `.env`, the same command does a real live analysis.
 
+### Web dashboard
+
+A single-page dashboard renders the same investigation as a clean report card and — the part a terminal can't show well — foregrounds the live Coral SQL trace and the four-sources-into-one-runtime story.
+
+```bash
+npm run snapshot          # writes web/src/data/snapshot.json from the pipeline
+cd web && npm install
+npm run dev               # http://localhost:5173
+```
+
+The dashboard reads a static snapshot (no live keys, no network), so it never fails on stage. Regenerate the snapshot any time with `npm run snapshot` from the repo root. Stack: Vite + React + Tailwind, in [`web/`](./web/).
+
 ---
 
 ## Choosing a provider
