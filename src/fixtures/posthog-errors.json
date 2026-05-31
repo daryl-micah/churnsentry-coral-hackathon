@@ -7,7 +7,9 @@
     "library": "posthog-node",
     "first_seen": "2026-05-10T07:45:00Z",
     "last_seen": "2026-05-24T19:20:00Z",
-    "occurrences": 64
+    "occurrences": 64,
+    "customer_occurrences": 18,
+    "customer_last_seen": "2026-05-24T19:20:00Z"
   },
   {
     "id": "01HTX9G2K3-rage-click",
@@ -17,6 +19,8 @@
     "library": "posthog-js",
     "first_seen": "2026-05-12T10:02:00Z",
     "last_seen": "2026-05-24T18:55:00Z",
-    "occurrences": 27
+    "occurrences": 27,
+    "customer_occurrences": 6,
+    "customer_last_seen": "2026-05-24T18:55:00Z"
   }
 ]

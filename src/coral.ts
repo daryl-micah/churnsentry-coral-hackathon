@@ -92,15 +92,19 @@ export async function getRecentPostHogErrors(
   const safeEmail = escapeSqlString(emailSchema.parse(customerEmail));
   const sql = `
     SELECT e.id, e.name, e.description, e.status, e.library,
-           e.first_seen, e.last_seen, e.occurrences
+           e.first_seen, e.last_seen, e.occurrences,
+           COUNT(ev.id) AS customer_occurrences,
+           MAX(ev.timestamp) AS customer_last_seen
     FROM posthog.errors e
-    LEFT JOIN posthog.events ev
-      ON ev.event = '$exception' AND ev.email = '${safeEmail}'
+    JOIN posthog.events ev
+      ON ev.event = '$exception'
+     AND ev.exception_issue_id = e.id
+     AND ev.email = '${safeEmail}'
     WHERE e.status = 'active'
       AND e.last_seen >= now() - interval '30 days'
     GROUP BY e.id, e.name, e.description, e.status, e.library,
              e.first_seen, e.last_seen, e.occurrences
-    ORDER BY e.occurrences DESC
+    ORDER BY customer_occurrences DESC, e.occurrences DESC
     LIMIT 10
   `;
   return tracedQuery("PostHog errors (custom Coral source)", sql);

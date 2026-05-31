@@ -184,7 +184,7 @@ async function main(): Promise<void> {
           if (options.demo) {
             addQueryTrace(
               "PostHog errors (custom Coral source)",
-              "SELECT e.id, e.name, e.status, e.first_seen, e.last_seen, e.occurrences FROM posthog.errors e LEFT JOIN posthog.events ev ON ev.event = '$exception' AND ev.email = '<email>' WHERE e.status = 'active' AND e.last_seen >= now() - interval '30 days' GROUP BY e.id, e.name, e.status, e.first_seen, e.last_seen, e.occurrences ORDER BY e.occurrences DESC LIMIT 10",
+              "SELECT e.id, e.name, e.status, e.first_seen, e.last_seen, e.occurrences, COUNT(ev.id) AS customer_occurrences, MAX(ev.timestamp) AS customer_last_seen FROM posthog.errors e JOIN posthog.events ev ON ev.event = '$exception' AND ev.exception_issue_id = e.id AND ev.email = '<email>' WHERE e.status = 'active' AND e.last_seen >= now() - interval '30 days' GROUP BY e.id, e.name, e.status, e.first_seen, e.last_seen, e.occurrences ORDER BY customer_occurrences DESC, e.occurrences DESC LIMIT 10",
             );
           }
           const data = options.demo

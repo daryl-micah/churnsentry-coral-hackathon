@@ -74,6 +74,7 @@ tables:
       - { name: distinct_id,    type: string,    json: distinct_id }
       - { name: person_id,      type: string,    json: person.id }
       - { name: email,          type: string,    json: properties.email, description: Email if identified }
+      - { name: exception_issue_id, type: string, json: properties.$exception_issue_id, description: For $exception events, the posthog.errors.id this exception belongs to }
       - { name: properties,     type: json,      json: properties }
       - { name: current_url,    type: string,    json: properties.$current_url }
 
